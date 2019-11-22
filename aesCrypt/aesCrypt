@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+from Crypto.Cipher import AES
+from binascii import b2a_hex, a2b_hex
+import time
+import Crypto.Util.Counter
+
+class aes_prpcrypt():
+    def __init__(self, key, mode, IV):
+        # self.key = key
+        self.key = bytes(key, encoding='utf-8')
+        self.IV = bytes(IV, encoding='utf-8')
+
+        if mode == 'CBC':
+            self.mode = AES.MODE_CBC
+        elif mode == 'ECB':
+            self.mode = AES.MODE_ECB
+        elif mode == 'CFB':
+            self.mode = AES.MODE_CFB
+        elif mode == 'OFB':
+            self.mode = AES.MODE_OFB
+        elif mode == 'CTR':
+            self.mode = AES.MODE_CTR
+        else:
+            print('mode error')
+            return
+    # 加密函数，如果text不是16的倍数【加密文本text必须为16的倍数！】，那就补足为16的倍数
+
+    def encrypt(self, text, imode):
+        print(type(text))
+        if imode == "ECB":
+            cryptor = AES.new(self.key, self.mode)
+        elif imode == "CFB":
+            cryptor = AES.new(self.key, self.mode, self.IV)
+        elif imode == "CTR":
+            cryptor = AES.new(self.key, self.mode, counter=Crypto.Util.Counter.new(16 * 8))
+        else:
+            cryptor = AES.new(self.key, self.mode, self.IV)
+        print(type(text))
+
+        # 这里密钥key 长度必须为16（AES-128）、24（AES-192）、或32（AES-256）Bytes 长度.目前AES-128足够用
+        length = 16
+        count = len(text)
+        add = length - (count % length)
+        text = text + (bytes('\0', encoding="utf-8") * add)
+        self.ciphertext = cryptor.encrypt(text)
+        # 因为AES加密时候得到的字符串不一定是ascii字符集的，输出到终端或者保存时候可能存在问题
+        # 所以这里统一把加密后的字符串转化为16进制字符串
+        return b2a_hex(self.ciphertext)
+
+    # 解密后，去掉补足的空格用strip() 去掉
+    def decrypt(self, text, imode):
+        if imode == "ECB":
+            cryptor = AES.new(self.key, self.mode)
+        elif imode == "CFB":
+            cryptor = AES.new(self.key, self.mode, self.IV)
+        elif imode == "CTR":
+            cryptor = AES.new(self.key, self.mode, counter=Crypto.Util.Counter.new(16 * 8))
+        else:
+            cryptor = AES.new(self.key, self.mode, self.IV)
+        plain_text = cryptor.decrypt(a2b_hex(text))
+        return plain_text.rstrip(bytes('\0', encoding="utf-8"))
+
+def aes_algorithm(encrypt_or_decrypt, data, key, mode, IV):
+    imode = mode
+    k = aes_prpcrypt(key, mode, IV)
+
+    if encrypt_or_decrypt == "encrypt":
+        res = k.encrypt(data, imode)
+        return True, res
+    elif encrypt_or_decrypt == "decrypt":
+        res = k.decrypt(data, imode)
+        return True, res
+    else:
+        print("methods is wrong")
+        return False, ''
+
+
+def startcrypt(text):
+    IV = "0"
+    if text["way"] == "file":
+        input_file_location = text["in"]
+        encrypt_or_decrypt = text["en_or_de"]
+        key = text["key"]
+        while len(key) < 16:
+            key = key + '0'
+        print(len(key))
+        output_file_location = text["out"]
+        mode = text["mode"]
+        if mode == "CBC" or mode == "OFB" or mode == "CFB":
+            IV = text["IV"]
+        data = open(input_file_location, 'rb').read()
+        start = time.clock()
+        success, res = aes_algorithm(encrypt_or_decrypt, data, key, mode, IV)
+        finish = str(time.clock() - start)
+        print(finish)
+        # print('res:', res, '\n', type(res))
+        # 加密时
+        if encrypt_or_decrypt == 'encrypt':
+            with open(output_file_location, 'wb') as f:
+                f.write(res)
+        # 解密时
+        elif encrypt_or_decrypt == 'decrypt':
+            with open(output_file_location, 'wb') as f:
+                f.write(res)
+        return None, finish
+
+    elif text["way"] == "str":
+        encrypt_or_decrypt = text["en_or_de"]
+        key = text["key"]
+        while len(key) < 16:
+            key = key + '0'
+        print(len(key))
+        mode = text["mode"]
+        data = text["str"]
+        data = bytes(data, encoding="utf-8")
+        print(data)
+        if mode == "CBC" or mode == "OFB" or mode == "CFB":
+            IV = text["IV"]
+        start = time.clock()
+        success, res = aes_algorithm(encrypt_or_decrypt, data, key, mode, IV)
+        finish = str(time.clock() - start)
+        res = str(res, encoding="utf-8")
+        print(finish)
+        print(res)
+        return res, finish
+
