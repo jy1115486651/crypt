@@ -10,6 +10,7 @@ import wx
 import aesCrypt
 import re
 
+
 class MainWindow(wx.Frame):
     flg = 'encrypt'
 
